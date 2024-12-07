@@ -20,7 +20,7 @@ Available Commands:
 }
 
 fn error_then_help(msg: &str) {
-    println!("ERROR: {}\n", msg);
+    println!("ERROR: {msg}\n");
     print_help();
 }
 
@@ -33,7 +33,7 @@ fn gen_keypair() {
 }
 
 fn validate_keypair(pk: &str, sk: &str) -> ResultType<()> {
-    let sk1 = base64::decode(&sk);
+    let sk1 = base64::decode(sk);
     if sk1.is_err() {
         bail!("Invalid secret key");
     }
@@ -45,7 +45,7 @@ fn validate_keypair(pk: &str, sk: &str) -> ResultType<()> {
     }
     let secret_key = secret_key.unwrap();
 
-    let pk1 = base64::decode(&pk);
+    let pk1 = base64::decode(pk);
     if pk1.is_err() {
         bail!("Invalid public key");
     }
@@ -74,7 +74,7 @@ fn validate_keypair(pk: &str, sk: &str) -> ResultType<()> {
 
 fn doctor_tcp(address: std::net::IpAddr, port: &str, desc: &str) {
     let start = std::time::Instant::now();
-    let conn = format!("{}:{}", address, port);
+    let conn = format!("{address}:{port}");
     if let Ok(_stream) = TcpStream::connect(conn.as_str()) {
         let elapsed = std::time::Instant::now().duration_since(start);
         println!(
@@ -84,26 +84,24 @@ fn doctor_tcp(address: std::net::IpAddr, port: &str, desc: &str) {
             elapsed.as_millis()
         );
     } else {
-        println!("TCP Port {} ({}): ERROR", port, desc);
+        println!("TCP Port {port} ({desc}): ERROR");
     }
 }
 
 fn doctor_ip(server_ip_address: std::net::IpAddr, server_address: Option<&str>) {
-    println!("\nChecking IP address: {}", server_ip_address);
+    println!("\nChecking IP address: {server_ip_address}");
     println!("Is IPV4: {}", server_ip_address.is_ipv4());
     println!("Is IPV6: {}", server_ip_address.is_ipv6());
 
     // reverse dns lookup
     // TODO: (check) doesn't seem to do reverse lookup on OSX...
     let reverse = lookup_addr(&server_ip_address).unwrap();
-    if server_address.is_some() {
-        if reverse == server_address.unwrap() {
-            println!("Reverse DNS lookup: '{}' MATCHES server address", reverse);
+    if let Some(server_address) = server_address {
+        if reverse == server_address {
+            println!("Reverse DNS lookup: '{reverse}' MATCHES server address");
         } else {
             println!(
-                "Reverse DNS lookup: '{}' DOESN'T MATCH server address '{}'",
-                reverse,
-                server_address.unwrap()
+                "Reverse DNS lookup: '{reverse}' DOESN'T MATCH server address '{server_address}'"
             );
         }
     }
@@ -125,20 +123,19 @@ fn doctor(server_address_unclean: &str) {
     let server_address3 = server_address_unclean.trim();
     let server_address2 = server_address3.to_lowercase();
     let server_address = server_address2.as_str();
-    println!("Checking server:  {}\n", server_address);
-    let server_ipaddr = server_address.parse::<IpAddr>();
-    if server_ipaddr.is_err() {
+    println!("Checking server:  {server_address}\n");
+    if let Ok(server_ipaddr) = server_address.parse::<IpAddr>() {
+        // user requested an ip address
+        doctor_ip(server_ipaddr, None);
+    } else {
         // the passed string is not an ip address
         let ips: Vec<std::net::IpAddr> = lookup_host(server_address).unwrap();
-        println!("Found {} IP addresses: ", ips.iter().count());
+        println!("Found {} IP addresses: ", ips.len());
 
         ips.iter().for_each(|ip| println!(" - {ip}"));
 
-        ips.iter().for_each(|ip| doctor_ip(*ip, Some(server_address)));
-
-    } else {
-        // user requested an ip address
-        doctor_ip(server_ipaddr.unwrap(), None);
+        ips.iter()
+            .for_each(|ip| doctor_ip(*ip, Some(server_address)));
     }
 }
 
@@ -157,7 +154,7 @@ fn main() {
             }
             let res = validate_keypair(args[2].as_str(), args[3].as_str());
             if let Err(e) = res {
-                println!("{}", e);
+                println!("{e}");
                 process::exit(0x0001);
             }
             println!("Key pair is VALID");
